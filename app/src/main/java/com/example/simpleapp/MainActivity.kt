@@ -22,12 +22,15 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var dateText: TextView
     private lateinit var grandTotalText: TextView
-    private lateinit var entriesContainer: LinearLayout
-    private lateinit var emptyText: TextView
 
-    private class TechRow(val total: TextView, val input: EditText)
+    private class TechRow(
+        val total: TextView,
+        val input: EditText,
+        val entriesBox: LinearLayout,
+        val empty: TextView
+    )
+
     private val rows = LinkedHashMap<String, TechRow>()
-
     private val timeFmt = SimpleDateFormat("HH:mm", Locale.getDefault())
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -37,18 +40,20 @@ class MainActivity : AppCompatActivity() {
 
         dateText = findViewById(R.id.dateText)
         grandTotalText = findViewById(R.id.grandTotalText)
-        entriesContainer = findViewById(R.id.entriesContainer)
-        emptyText = findViewById(R.id.emptyText)
         val techContainer = findViewById<LinearLayout>(R.id.techContainer)
 
         for (tech in NailDb.TECHS) {
             val card = layoutInflater.inflate(R.layout.item_tech_input, techContainer, false)
             card.findViewById<TextView>(R.id.techName).text = tech
-            val total = card.findViewById<TextView>(R.id.techTotal)
             val input = card.findViewById<EditText>(R.id.amountInput)
             card.findViewById<View>(R.id.addButton).setOnClickListener { addAmount(tech, input) }
             input.setOnEditorActionListener { _, _, _ -> addAmount(tech, input); true }
-            rows[tech] = TechRow(total, input)
+            rows[tech] = TechRow(
+                total = card.findViewById(R.id.techTotal),
+                input = input,
+                entriesBox = card.findViewById(R.id.techEntries),
+                empty = card.findViewById(R.id.techEmpty)
+            )
             techContainer.addView(card)
         }
 
@@ -97,31 +102,38 @@ class MainActivity : AppCompatActivity() {
     private fun refresh() {
         dateText.text = Dates.displayLong(selectedDay)
 
-        val totals = db.totalsByTechLike(selectedDay)
         var grand = 0L
+        val customerLabel = getString(R.string.customer)
         for (tech in NailDb.TECHS) {
-            val cents = totals[tech] ?: 0L
-            grand += cents
-            rows[tech]?.total?.text = Money.format(cents)
+            val row = rows[tech] ?: continue
+            val entries = db.entriesForTechDay(tech, selectedDay)
+
+            val techTotal = entries.sumOf { it.cents }
+            grand += techTotal
+            row.total.text = Money.format(techTotal)
+
+            row.entriesBox.removeAllViews()
+            row.empty.visibility = if (entries.isEmpty()) View.VISIBLE else View.GONE
+            entries.forEachIndexed { index, entry ->
+                val label = "$customerLabel ${index + 1}"
+                val view = layoutInflater.inflate(R.layout.item_entry, row.entriesBox, false)
+                view.findViewById<TextView>(R.id.entryText).text =
+                    "$label  ·  ${Money.format(entry.cents)}  ·  ${timeFmt.format(Date(entry.createdAt))}"
+                view.findViewById<View>(R.id.deleteButton)
+                    .setOnClickListener { confirmDelete(entry, label) }
+                row.entriesBox.addView(view)
+            }
         }
         grandTotalText.text = Money.format(grand)
-
-        entriesContainer.removeAllViews()
-        val entries = db.entriesForDay(selectedDay)
-        emptyText.visibility = if (entries.isEmpty()) View.VISIBLE else View.GONE
-        for (entry in entries) {
-            val row = layoutInflater.inflate(R.layout.item_entry, entriesContainer, false)
-            row.findViewById<TextView>(R.id.entryText).text =
-                "${entry.tech}  ·  ${Money.format(entry.cents)}  ·  ${timeFmt.format(Date(entry.createdAt))}"
-            row.findViewById<View>(R.id.deleteButton).setOnClickListener { confirmDelete(entry) }
-            entriesContainer.addView(row)
-        }
     }
 
-    private fun confirmDelete(entry: Entry) {
+    private fun confirmDelete(entry: Entry, label: String) {
         AlertDialog.Builder(this)
-            .setTitle(getString(R.string.delete))
-            .setMessage("${entry.tech} · ${Money.format(entry.cents)}")
+            .setTitle(getString(R.string.confirm_delete_title))
+            .setMessage(
+                "${entry.tech} · $label\n${Money.format(entry.cents)}\n\n" +
+                    getString(R.string.cannot_undo)
+            )
             .setPositiveButton(getString(R.string.delete)) { _, _ ->
                 db.deleteEntry(entry.id)
                 refresh()

@@ -8,10 +8,12 @@
     <string name="add">Thêm</string>
     <string name="day_total">Tổng doanh thu ngày</string>
     <string name="view_report">📊 Xem báo cáo</string>
-    <string name="entries_title">Các lần nhập trong ngày</string>
-    <string name="empty_entries">Chưa có khoản nào trong ngày này.</string>
+    <string name="no_customers">Chưa có khách nào</string>
+    <string name="customer">Khách</string>
     <string name="delete">Xoá</string>
     <string name="cancel">Huỷ</string>
+    <string name="confirm_delete_title">Xoá khoản này?</string>
+    <string name="cannot_undo">Thao tác này không thể hoàn tác.</string>
     <string name="report_title">📊 Báo cáo doanh thu</string>
     <string name="close">Đóng</string>
     <string name="invalid_amount">Vui lòng nhập số tiền hợp lệ</string>

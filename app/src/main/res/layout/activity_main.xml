@@ -113,30 +113,5 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
             android:text="@string/view_report" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="18dp"
-            android:text="@string/entries_title"
-            android:textColor="#222222"
-            android:textSize="15sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/emptyText"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:text="@string/empty_entries"
-            android:textColor="@color/gray_600"
-            android:textSize="14sp" />
-
-        <LinearLayout
-            android:id="@+id/entriesContainer"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:orientation="vertical" />
     </LinearLayout>
 </ScrollView>

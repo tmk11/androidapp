@@ -69,5 +69,21 @@
                 android:layout_marginStart="8dp"
                 android:text="@string/add" />
         </LinearLayout>
+
+        <TextView
+            android:id="@+id/techEmpty"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/no_customers"
+            android:textColor="@color/gray_600"
+            android:textSize="13sp" />
+
+        <LinearLayout
+            android:id="@+id/techEntries"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:orientation="vertical" />
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

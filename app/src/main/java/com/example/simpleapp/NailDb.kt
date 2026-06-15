@@ -62,6 +62,21 @@ class NailDb(context: Context) : SQLiteOpenHelper(context.applicationContext, DB
         return list
     }
 
+    /** A technician's entries for one day, oldest first (customer #1, #2, ...). */
+    fun entriesForTechDay(tech: String, day: String): List<Entry> {
+        val list = ArrayList<Entry>()
+        readableDatabase.rawQuery(
+            "SELECT id, tech, amount_cents, day, created_at FROM entries " +
+                "WHERE tech=? AND day=? ORDER BY created_at ASC",
+            arrayOf(tech, day)
+        ).use { c ->
+            while (c.moveToNext()) {
+                list.add(Entry(c.getLong(0), c.getString(1), c.getLong(2), c.getString(3), c.getLong(4)))
+            }
+        }
+        return list
+    }
+
     /** Totals (cents) grouped by technician for days matching the LIKE [pattern]. */
     fun totalsByTechLike(pattern: String): Map<String, Long> {
         val map = HashMap<String, Long>()
