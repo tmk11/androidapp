@@ -16,6 +16,12 @@
     <string name="confirm_delete_title">Xoá khoản này?</string>
     <string name="cannot_undo">Thao tác này không thể hoàn tác.</string>
     <string name="report_title">📊 Báo cáo doanh thu</string>
+    <string name="report_by_day">Báo cáo theo ngày</string>
+    <string name="report_by_month">Báo cáo theo tháng</string>
+    <string name="report_all">Tất cả thời gian</string>
+    <string name="pick_day">Chọn ngày</string>
+    <string name="pick_month">Chọn tháng</string>
+    <string name="export_report">📤 Xuất / Chia sẻ</string>
     <string name="close">Đóng</string>
     <string name="invalid_amount">Vui lòng nhập số tiền hợp lệ</string>
     <string name="total">Tổng</string>

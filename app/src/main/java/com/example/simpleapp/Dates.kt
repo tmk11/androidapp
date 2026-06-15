@@ -25,4 +25,12 @@ object Dates {
 
     /** SQL LIKE pattern matching the month of [key], e.g. "2026-06-%". */
     fun monthPattern(key: String): String = key.substring(0, 7) + "-%"
+
+    /** SQL LIKE pattern for a given year/month (month is 1..12), e.g. "2026-06-%". */
+    fun monthPatternOf(year: Int, month: Int): String =
+        String.format(Locale.US, "%04d-%02d-%%", year, month)
+
+    /** Human label for a year/month (month is 1..12), e.g. "06/2026". */
+    fun monthDisplay(year: Int, month: Int): String =
+        String.format(Locale.US, "%02d/%04d", month, year)
 }
