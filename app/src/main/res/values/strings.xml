@@ -1,7 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Cute Camera 🐱</string>
-    <string name="switch_camera">Đổi camera 🔄</string>
-    <string name="next_filter">Đổi filter ✨</string>
-    <string name="need_camera">Cần quyền camera để dùng app này 📷</string>
+    <string name="app_name">Doanh Thu Nail</string>
+    <string name="title">💅 Doanh thu tiệm Nail</string>
+    <string name="date_label">Ngày</string>
+    <string name="change_date">Đổi ngày</string>
+    <string name="amount_hint">Số tiền (€)</string>
+    <string name="add">Thêm</string>
+    <string name="day_total">Tổng doanh thu ngày</string>
+    <string name="view_report">📊 Xem báo cáo</string>
+    <string name="entries_title">Các lần nhập trong ngày</string>
+    <string name="empty_entries">Chưa có khoản nào trong ngày này.</string>
+    <string name="delete">Xoá</string>
+    <string name="cancel">Huỷ</string>
+    <string name="report_title">📊 Báo cáo doanh thu</string>
+    <string name="close">Đóng</string>
+    <string name="invalid_amount">Vui lòng nhập số tiền hợp lệ</string>
+    <string name="total">Tổng</string>
 </resources>

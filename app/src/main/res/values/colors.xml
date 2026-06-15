@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="white">#FFFFFFFF</color>
+    <color name="pink_700">#C2185B</color>
+    <color name="pink_600">#D81B60</color>
+    <color name="pink_100">#FCE4EC</color>
+    <color name="pink_50">#FFF8FA</color>
+    <color name="gray_600">#757575</color>
+    <color name="divider">#E0E0E0</color>
+</resources>

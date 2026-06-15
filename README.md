@@ -1,62 +1,55 @@
-# Cute Camera 🐱 — Face filters
+# Doanh Thu Nail 💅 — Nail salon revenue tracker
 
-An Android app that opens the camera and draws cute filters that **track your
-face** in real time: cat ears + nose + whiskers, a party hat, glasses, and a
-puppy. Tap to switch filters or flip between the front and back camera.
+An Android app for a nail salon to record daily revenue per technician
+(**Ha, David, Tu, Anh**) in **Euro (€)**. Data is stored locally on the device
+with SQLite, so it persists between sessions and works fully offline.
 
-## How it works
+## Features
 
-- **CameraX** drives the live camera preview and feeds frames to an analyzer.
-- **ML Kit Face Detection** (on-device, bundled model) finds faces and facial
-  landmarks (eyes, nose) in each frame.
-- A transparent `FaceOverlayView` maps those landmarks into screen coordinates
-  (handling front-camera mirroring + center-crop scaling) and paints the chosen
-  filter with `Canvas`.
-
-## Controls
-
-- **Đổi filter ✨** — cycle Cat → Party hat → Glasses → Puppy.
-- **Đổi camera 🔄** — switch front / back camera.
+- **Per-day entry screen**
+  - Pick the day (defaults to today).
+  - For each technician: an amount field + **Thêm** (Add) to record a payment.
+    Multiple entries per day are summed automatically.
+  - Live per-technician totals and a grand **day total**.
+  - List of each entry made that day, with delete (to fix mistakes).
+- **Report screen** — totals per technician for **today**, **this month**, and
+  **all time**, each with a grand total.
+- Amounts are entered/edited in cents internally and shown as Euro (e.g. `12,50 €`).
 
 ## Tech
 
-- Kotlin, `ComponentActivity`, runtime camera permission.
-- CameraX 1.3.4, ML Kit `face-detection` 16.1.7 (no Play Services required).
+- Kotlin, `AppCompatActivity`, Material 3 components (cards, text fields, buttons).
+- Local storage with `SQLiteOpenHelper` (no backend, no internet permission).
 - minSdk 26, targetSdk / compileSdk 34, AGP 8.6.1, Gradle 8.9.
 
 ## Project layout
 
 ```
 app/src/main/
-  java/com/example/simpleapp/MainActivity.kt      # camera + permission + binding
-  java/com/example/simpleapp/FaceAnalyzer.kt      # CameraX -> ML Kit bridge
-  java/com/example/simpleapp/FaceOverlayView.kt   # draws the filters on the face
-  res/layout/activity_camera.xml                  # preview + overlay + buttons
-  res/values/strings.xml
-  AndroidManifest.xml                             # CAMERA permission
+  java/com/example/simpleapp/
+    MainActivity.kt     # day entry screen
+    ReportActivity.kt   # totals per technician (today / month / all time)
+    NailDb.kt           # SQLite storage + Entry model + technician list
+    Money.kt            # Euro formatting + robust input parsing (cents)
+    Dates.kt            # day-key + display date helpers
+  res/layout/           # screens and reusable item layouts
+  res/values/           # strings, colors, Material 3 theme
+  AndroidManifest.xml
 ```
+
+To change the technicians, edit `TECHS` in `NailDb.kt`.
 
 ## Building the APK
 
-### In CI (recommended)
-
-GitHub Actions builds the APK on every push (`.github/workflows/android-build.yml`):
+GitHub Actions builds the APK on every push
+(`.github/workflows/android-build.yml`):
 
 1. **Actions** tab → latest **Build APK** run → download the **`app-debug-apk`**
    artifact, or
 2. Grab `app-debug.apk` from the **`debug-latest`** GitHub Release.
 
-Install it on a real device and grant the camera permission to try it.
+Locally (with the Android SDK installed): `./gradlew assembleDebug` →
+`app/build/outputs/apk/debug/app-debug.apk`.
 
-### Locally
-
-With the Android SDK installed and `ANDROID_HOME` (or `local.properties`) set:
-
-```bash
-./gradlew assembleDebug
-# -> app/build/outputs/apk/debug/app-debug.apk
-```
-
-> This app depends on Google's CameraX + ML Kit libraries. It was scaffolded in
-> an environment without access to Google's Maven/SDK hosts, so the APK is built
-> on GitHub's runners (which can reach them).
+> The app uses Google's AndroidX / Material libraries, so it is built on GitHub's
+> runners (which can reach Google's Maven), not in the offline scaffold sandbox.

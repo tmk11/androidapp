@@ -1,136 +1,132 @@
 package com.example.simpleapp
 
-import android.Manifest
-import android.content.pm.PackageManager
+import android.app.DatePickerDialog
+import android.content.Intent
 import android.os.Bundle
 import android.view.View
-import android.widget.Button
+import android.widget.EditText
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
-import androidx.activity.ComponentActivity
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.camera.core.CameraSelector
-import androidx.camera.core.ImageAnalysis
-import androidx.camera.core.Preview
-import androidx.camera.lifecycle.ProcessCameraProvider
-import androidx.camera.view.PreviewView
-import androidx.core.content.ContextCompat
-import com.google.mlkit.vision.face.FaceDetection
-import com.google.mlkit.vision.face.FaceDetector
-import com.google.mlkit.vision.face.FaceDetectorOptions
-import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
+import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.app.AppCompatActivity
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 
-/**
- * Opens the camera and draws cute face filters (cat ears, party hat, glasses,
- * puppy) that track the user's face using ML Kit face detection.
- */
-class MainActivity : ComponentActivity() {
+class MainActivity : AppCompatActivity() {
 
-    private lateinit var previewView: PreviewView
-    private lateinit var overlay: FaceOverlayView
-    private lateinit var filterLabel: TextView
+    private lateinit var db: NailDb
+    private var selectedDay = Dates.todayKey()
 
-    private lateinit var cameraExecutor: ExecutorService
-    private lateinit var detector: FaceDetector
-    private var cameraProvider: ProcessCameraProvider? = null
-    private var lensFacing = CameraSelector.LENS_FACING_FRONT
+    private lateinit var dateText: TextView
+    private lateinit var grandTotalText: TextView
+    private lateinit var entriesContainer: LinearLayout
+    private lateinit var emptyText: TextView
 
-    private val requestPermission =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-            if (granted) startCamera()
-            else Toast.makeText(this, getString(R.string.need_camera), Toast.LENGTH_LONG).show()
-        }
+    private class TechRow(val total: TextView, val input: EditText)
+    private val rows = LinkedHashMap<String, TechRow>()
+
+    private val timeFmt = SimpleDateFormat("HH:mm", Locale.getDefault())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_camera)
+        setContentView(R.layout.activity_main)
+        db = NailDb(this)
 
-        previewView = findViewById(R.id.previewView)
-        overlay = findViewById(R.id.overlay)
-        filterLabel = findViewById(R.id.filterLabel)
-        previewView.scaleType = PreviewView.ScaleType.FILL_CENTER
-        filterLabel.text = overlay.currentFilterName()
+        dateText = findViewById(R.id.dateText)
+        grandTotalText = findViewById(R.id.grandTotalText)
+        entriesContainer = findViewById(R.id.entriesContainer)
+        emptyText = findViewById(R.id.emptyText)
+        val techContainer = findViewById<LinearLayout>(R.id.techContainer)
 
-        findViewById<Button>(R.id.btnFilter).setOnClickListener {
-            overlay.nextFilter()
-            filterLabel.text = overlay.currentFilterName()
+        for (tech in NailDb.TECHS) {
+            val card = layoutInflater.inflate(R.layout.item_tech_input, techContainer, false)
+            card.findViewById<TextView>(R.id.techName).text = tech
+            val total = card.findViewById<TextView>(R.id.techTotal)
+            val input = card.findViewById<EditText>(R.id.amountInput)
+            card.findViewById<View>(R.id.addButton).setOnClickListener { addAmount(tech, input) }
+            input.setOnEditorActionListener { _, _, _ -> addAmount(tech, input); true }
+            rows[tech] = TechRow(total, input)
+            techContainer.addView(card)
         }
-        findViewById<Button>(R.id.btnSwitch).setOnClickListener {
-            lensFacing = if (lensFacing == CameraSelector.LENS_FACING_FRONT)
-                CameraSelector.LENS_FACING_BACK else CameraSelector.LENS_FACING_FRONT
-            bindCamera()
+
+        findViewById<View>(R.id.changeDateButton).setOnClickListener { pickDate() }
+        findViewById<View>(R.id.reportButton).setOnClickListener {
+            startActivity(Intent(this, ReportActivity::class.java))
         }
 
-        val options = FaceDetectorOptions.Builder()
-            .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_FAST)
-            .setLandmarkMode(FaceDetectorOptions.LANDMARK_MODE_ALL)
-            .setContourMode(FaceDetectorOptions.CONTOUR_MODE_NONE)
-            .setMinFaceSize(0.15f)
-            .build()
-        detector = FaceDetection.getClient(options)
-        cameraExecutor = Executors.newSingleThreadExecutor()
+        refresh()
+    }
 
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
-            == PackageManager.PERMISSION_GRANTED
-        ) {
-            startCamera()
-        } else {
-            requestPermission.launch(Manifest.permission.CAMERA)
+    override fun onResume() {
+        super.onResume()
+        refresh()
+    }
+
+    private fun addAmount(tech: String, input: EditText) {
+        val cents = Money.parseToCents(input.text.toString())
+        if (cents == null || cents <= 0L) {
+            Toast.makeText(this, getString(R.string.invalid_amount), Toast.LENGTH_SHORT).show()
+            return
+        }
+        db.addEntry(tech, cents, selectedDay)
+        input.setText("")
+        input.clearFocus()
+        refresh()
+    }
+
+    private fun pickDate() {
+        val cal = Calendar.getInstance()
+        cal.time = Dates.parseKey(selectedDay)
+        DatePickerDialog(
+            this,
+            { _, year, month, dayOfMonth ->
+                val picked = Calendar.getInstance()
+                picked.set(year, month, dayOfMonth, 0, 0, 0)
+                selectedDay = Dates.keyFromCalendar(picked)
+                refresh()
+            },
+            cal.get(Calendar.YEAR),
+            cal.get(Calendar.MONTH),
+            cal.get(Calendar.DAY_OF_MONTH)
+        ).show()
+    }
+
+    private fun refresh() {
+        dateText.text = Dates.displayLong(selectedDay)
+
+        val totals = db.totalsByTechLike(selectedDay)
+        var grand = 0L
+        for (tech in NailDb.TECHS) {
+            val cents = totals[tech] ?: 0L
+            grand += cents
+            rows[tech]?.total?.text = Money.format(cents)
+        }
+        grandTotalText.text = Money.format(grand)
+
+        entriesContainer.removeAllViews()
+        val entries = db.entriesForDay(selectedDay)
+        emptyText.visibility = if (entries.isEmpty()) View.VISIBLE else View.GONE
+        for (entry in entries) {
+            val row = layoutInflater.inflate(R.layout.item_entry, entriesContainer, false)
+            row.findViewById<TextView>(R.id.entryText).text =
+                "${entry.tech}  ·  ${Money.format(entry.cents)}  ·  ${timeFmt.format(Date(entry.createdAt))}"
+            row.findViewById<View>(R.id.deleteButton).setOnClickListener { confirmDelete(entry) }
+            entriesContainer.addView(row)
         }
     }
 
-    override fun onWindowFocusChanged(hasFocus: Boolean) {
-        super.onWindowFocusChanged(hasFocus)
-        if (hasFocus) hideSystemUi()
-    }
-
-    @Suppress("DEPRECATION")
-    private fun hideSystemUi() {
-        window.decorView.systemUiVisibility = (
-            View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
-                View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
-                View.SYSTEM_UI_FLAG_FULLSCREEN
-            )
-    }
-
-    private fun startCamera() {
-        val future = ProcessCameraProvider.getInstance(this)
-        future.addListener({
-            cameraProvider = future.get()
-            bindCamera()
-        }, ContextCompat.getMainExecutor(this))
-    }
-
-    private fun bindCamera() {
-        val provider = cameraProvider ?: return
-        provider.unbindAll()
-
-        val preview = Preview.Builder().build().also {
-            it.setSurfaceProvider(previewView.surfaceProvider)
-        }
-
-        val analysis = ImageAnalysis.Builder()
-            .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-            .build()
-        analysis.setAnalyzer(
-            cameraExecutor,
-            FaceAnalyzer(detector, overlay) { lensFacing == CameraSelector.LENS_FACING_FRONT }
-        )
-
-        overlay.setFrontCamera(lensFacing == CameraSelector.LENS_FACING_FRONT)
-
-        val selector = CameraSelector.Builder().requireLensFacing(lensFacing).build()
-        try {
-            provider.bindToLifecycle(this, selector, preview, analysis)
-        } catch (e: Exception) {
-            Toast.makeText(this, "Camera error: ${e.message}", Toast.LENGTH_LONG).show()
-        }
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        cameraExecutor.shutdown()
-        detector.close()
+    private fun confirmDelete(entry: Entry) {
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.delete))
+            .setMessage("${entry.tech} · ${Money.format(entry.cents)}")
+            .setPositiveButton(getString(R.string.delete)) { _, _ ->
+                db.deleteEntry(entry.id)
+                refresh()
+            }
+            .setNegativeButton(getString(R.string.cancel), null)
+            .show()
     }
 }
