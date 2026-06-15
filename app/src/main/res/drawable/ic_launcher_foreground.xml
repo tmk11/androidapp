@@ -4,17 +4,15 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <path
-        android:strokeColor="#FFD54F"
-        android:strokeWidth="3.5"
-        android:strokeLineCap="round"
-        android:pathData="M54,54 L54,27 M54,54 L54,81 M54,54 L27,54 M54,54 L81,54" />
-    <path
-        android:strokeColor="#FF5FA2"
-        android:strokeWidth="3.5"
-        android:strokeLineCap="round"
-        android:pathData="M54,54 L35,35 M54,54 L73,73 M54,54 L73,35 M54,54 L35,73" />
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M54,49 A5,5 0 1 0 54,59 A5,5 0 1 0 54,49 Z" />
+    <!-- ears -->
+    <path android:fillColor="#FFD54F" android:pathData="M38,36 L29,16 L51,32 Z" />
+    <path android:fillColor="#FFD54F" android:pathData="M70,36 L79,16 L57,32 Z" />
+    <!-- head -->
+    <path android:fillColor="#FFD54F"
+        android:pathData="M54,30 A23,23 0 1 0 54,76 A23,23 0 1 0 54,30 Z" />
+    <!-- eyes -->
+    <path android:fillColor="#3A2A12" android:pathData="M46,50 A3.2,3.2 0 1 0 46,56.4 A3.2,3.2 0 1 0 46,50 Z" />
+    <path android:fillColor="#3A2A12" android:pathData="M62,50 A3.2,3.2 0 1 0 62,56.4 A3.2,3.2 0 1 0 62,50 Z" />
+    <!-- nose -->
+    <path android:fillColor="#FF6F91" android:pathData="M50,60 L58,60 L54,65 Z" />
 </vector>

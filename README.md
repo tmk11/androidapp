@@ -1,49 +1,52 @@
-# Pháo Hoa ✨ — Interactive Fireworks
+# Cute Camera 🐱 — Face filters
 
-A tiny but delightful Android app written in Kotlin: an interactive fireworks
-playground rendered entirely with the Android `Canvas` API — **no external
-dependencies**.
+An Android app that opens the camera and draws cute filters that **track your
+face** in real time: cat ears + nose + whiskers, a party hat, glasses, and a
+puppy. Tap to switch filters or flip between the front and back camera.
 
-## What it does
+## How it works
 
-- **Tap** anywhere → a rocket rises and bursts into a colourful shower of sparks
-  (with gravity, fading motion trails, and twinkling embers).
-- **Drag** your finger → paint a trail of glowing rainbow sparkles.
-- **Shake** the phone → fire a whole salvo of fireworks at once. 🎆
-- Background: an animated night sky with twinkling stars and a glowing moon.
+- **CameraX** drives the live camera preview and feeds frames to an analyzer.
+- **ML Kit Face Detection** (on-device, bundled model) finds faces and facial
+  landmarks (eyes, nose) in each frame.
+- A transparent `FaceOverlayView` maps those landmarks into screen coordinates
+  (handling front-camera mirroring + center-crop scaling) and paints the chosen
+  filter with `Canvas`.
 
-Runs full-screen / immersive and keeps the screen on.
+## Controls
+
+- **Đổi filter ✨** — cycle Cat → Party hat → Glasses → Puppy.
+- **Đổi camera 🔄** — switch front / back camera.
 
 ## Tech
 
-- Language: Kotlin, single custom `View` (`FireworksView`) + a frame loop driven
-  by `Choreographer`.
-- Physics & rendering: plain `Canvas`, motion trails via a persistent `Bitmap`
-  faded with `PorterDuff.Mode.DST_OUT`.
-- Shake detection: `SensorManager` accelerometer.
-- minSdk 26, targetSdk / compileSdk 34, AGP 8.6.1, Gradle 8.9 — zero libraries.
+- Kotlin, `ComponentActivity`, runtime camera permission.
+- CameraX 1.3.4, ML Kit `face-detection` 16.1.7 (no Play Services required).
+- minSdk 26, targetSdk / compileSdk 34, AGP 8.6.1, Gradle 8.9.
 
 ## Project layout
 
 ```
 app/src/main/
-  java/com/example/simpleapp/MainActivity.kt    # immersive host activity
-  java/com/example/simpleapp/FireworksView.kt   # the whole experience
-  res/values/strings.xml                        # app name + on-screen hints
-  res/drawable/ + res/mipmap-anydpi-v26/        # firework-burst launcher icon
-  AndroidManifest.xml
+  java/com/example/simpleapp/MainActivity.kt      # camera + permission + binding
+  java/com/example/simpleapp/FaceAnalyzer.kt      # CameraX -> ML Kit bridge
+  java/com/example/simpleapp/FaceOverlayView.kt   # draws the filters on the face
+  res/layout/activity_camera.xml                  # preview + overlay + buttons
+  res/values/strings.xml
+  AndroidManifest.xml                             # CAMERA permission
 ```
 
 ## Building the APK
 
 ### In CI (recommended)
 
-GitHub Actions builds the APK on every push (`.github/workflows/android-build.yml`).
-After a run finishes:
+GitHub Actions builds the APK on every push (`.github/workflows/android-build.yml`):
 
 1. **Actions** tab → latest **Build APK** run → download the **`app-debug-apk`**
    artifact, or
 2. Grab `app-debug.apk` from the **`debug-latest`** GitHub Release.
+
+Install it on a real device and grant the camera permission to try it.
 
 ### Locally
 
@@ -54,5 +57,6 @@ With the Android SDK installed and `ANDROID_HOME` (or `local.properties`) set:
 # -> app/build/outputs/apk/debug/app-debug.apk
 ```
 
-> This app was scaffolded in an environment without access to Google's Android
-> SDK/Maven hosts, so the APK is built on GitHub's runners instead.
+> This app depends on Google's CameraX + ML Kit libraries. It was scaffolded in
+> an environment without access to Google's Maven/SDK hosts, so the APK is built
+> on GitHub's runners (which can reach them).

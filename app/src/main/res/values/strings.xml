@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Pháo Hoa ✨</string>
-    <string name="hint_line1">✨ Chạm để bắn pháo hoa ✨</string>
-    <string name="hint_line2">Vuốt để vẽ tia sáng • Lắc máy để bắn loạt</string>
+    <string name="app_name">Cute Camera 🐱</string>
+    <string name="switch_camera">Đổi camera 🔄</string>
+    <string name="next_filter">Đổi filter ✨</string>
+    <string name="need_camera">Cần quyền camera để dùng app này 📷</string>
 </resources>
