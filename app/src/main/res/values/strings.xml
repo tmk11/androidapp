@@ -1,8 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Simple App</string>
-    <string name="hello_message">Xin chào! 👋</string>
-    <string name="count_value_zero">Số lần nhấn: 0</string>
-    <string name="count_value">Số lần nhấn: %1$d</string>
-    <string name="tap_me">Nhấn vào tôi</string>
+    <string name="app_name">Pháo Hoa ✨</string>
+    <string name="hint_line1">✨ Chạm để bắn pháo hoa ✨</string>
+    <string name="hint_line2">Vuốt để vẽ tia sáng • Lắc máy để bắn loạt</string>
 </resources>

@@ -1,49 +1,58 @@
-# Simple App
+# Pháo Hoa ✨ — Interactive Fireworks
 
-A minimal Android application written in Kotlin. It shows a greeting, a counter,
-and a button that increments the counter on each tap.
+A tiny but delightful Android app written in Kotlin: an interactive fireworks
+playground rendered entirely with the Android `Canvas` API — **no external
+dependencies**.
+
+## What it does
+
+- **Tap** anywhere → a rocket rises and bursts into a colourful shower of sparks
+  (with gravity, fading motion trails, and twinkling embers).
+- **Drag** your finger → paint a trail of glowing rainbow sparkles.
+- **Shake** the phone → fire a whole salvo of fireworks at once. 🎆
+- Background: an animated night sky with twinkling stars and a glowing moon.
+
+Runs full-screen / immersive and keeps the screen on.
+
+## Tech
+
+- Language: Kotlin, single custom `View` (`FireworksView`) + a frame loop driven
+  by `Choreographer`.
+- Physics & rendering: plain `Canvas`, motion trails via a persistent `Bitmap`
+  faded with `PorterDuff.Mode.DST_OUT`.
+- Shake detection: `SensorManager` accelerometer.
+- minSdk 26, targetSdk / compileSdk 34, AGP 8.6.1, Gradle 8.9 — zero libraries.
 
 ## Project layout
 
 ```
-app/
-  src/main/
-    java/com/example/simpleapp/MainActivity.kt   # single screen
-    res/layout/activity_main.xml                 # UI layout
-    res/values/strings.xml                       # text resources
-    res/drawable/ + res/mipmap-anydpi-v26/       # adaptive launcher icon
-    AndroidManifest.xml
-  build.gradle.kts                               # module config
-build.gradle.kts / settings.gradle.kts           # project config
-.github/workflows/android-build.yml              # builds the APK in CI
+app/src/main/
+  java/com/example/simpleapp/MainActivity.kt    # immersive host activity
+  java/com/example/simpleapp/FireworksView.kt   # the whole experience
+  res/values/strings.xml                        # app name + on-screen hints
+  res/drawable/ + res/mipmap-anydpi-v26/        # firework-burst launcher icon
+  AndroidManifest.xml
 ```
-
-- Language: Kotlin
-- minSdk 26, targetSdk / compileSdk 34
-- Android Gradle Plugin 8.6.1, Gradle 8.9
-- No external dependencies (uses the Android framework directly)
 
 ## Building the APK
 
 ### In CI (recommended)
 
-This repository builds the APK automatically with GitHub Actions on every push
-(`.github/workflows/android-build.yml`). After a run finishes:
+GitHub Actions builds the APK on every push (`.github/workflows/android-build.yml`).
+After a run finishes:
 
-1. Open the **Actions** tab → the latest **Build APK** run.
-2. Download the **`app-debug-apk`** artifact, or
-3. Grab `app-debug.apk` from the **`debug-latest`** GitHub Release.
+1. **Actions** tab → latest **Build APK** run → download the **`app-debug-apk`**
+   artifact, or
+2. Grab `app-debug.apk` from the **`debug-latest`** GitHub Release.
 
 ### Locally
 
-You need the Android SDK installed and `ANDROID_HOME` (or a `local.properties`
-with `sdk.dir=...`) configured, then:
+With the Android SDK installed and `ANDROID_HOME` (or `local.properties`) set:
 
 ```bash
 ./gradlew assembleDebug
+# -> app/build/outputs/apk/debug/app-debug.apk
 ```
 
-The APK is produced at `app/build/outputs/apk/debug/app-debug.apk`.
-
-> Note: this app was scaffolded in an environment without access to Google's
-> Android SDK/Maven hosts, so the APK is built on GitHub's runners instead.
+> This app was scaffolded in an environment without access to Google's Android
+> SDK/Maven hosts, so the APK is built on GitHub's runners instead.

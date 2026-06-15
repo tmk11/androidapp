@@ -2,27 +2,32 @@ package com.example.simpleapp
 
 import android.app.Activity
 import android.os.Bundle
-import android.widget.Button
-import android.widget.TextView
+import android.view.View
+import android.view.WindowManager
 
-/**
- * A minimal single-screen app: a title, a counter, and a button that
- * increments the counter each time it is tapped.
- */
+/** Hosts the full-screen, immersive [FireworksView]. */
 class MainActivity : Activity() {
-
-    private var count = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        setContentView(FireworksView(this))
+    }
 
-        val counterText = findViewById<TextView>(R.id.counterText)
-        val tapButton = findViewById<Button>(R.id.tapButton)
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) hideSystemUi()
+    }
 
-        tapButton.setOnClickListener {
-            count++
-            counterText.text = getString(R.string.count_value, count)
-        }
+    @Suppress("DEPRECATION")
+    private fun hideSystemUi() {
+        window.decorView.systemUiVisibility = (
+            View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
+                View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
+                View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
+                View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
+                View.SYSTEM_UI_FLAG_FULLSCREEN or
+                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+            )
     }
 }
