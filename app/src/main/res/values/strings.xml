@@ -9,6 +9,7 @@
     <string name="day_total">Tổng doanh thu ngày</string>
     <string name="view_report">📊 Xem báo cáo</string>
     <string name="no_customers">Chưa có khách nào</string>
+    <string name="customers_count">%1$d khách</string>
     <string name="customer">Khách</string>
     <string name="delete">Xoá</string>
     <string name="cancel">Huỷ</string>

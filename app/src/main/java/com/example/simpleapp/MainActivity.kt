@@ -10,10 +10,9 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import java.text.SimpleDateFormat
+import com.google.android.material.chip.Chip
+import com.google.android.material.chip.ChipGroup
 import java.util.Calendar
-import java.util.Date
-import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
 
@@ -26,12 +25,13 @@ class MainActivity : AppCompatActivity() {
     private class TechRow(
         val total: TextView,
         val input: EditText,
-        val entriesBox: LinearLayout,
-        val empty: TextView
+        val chevron: TextView,
+        val toggleLabel: TextView,
+        val chips: ChipGroup,
+        var expanded: Boolean = false
     )
 
     private val rows = LinkedHashMap<String, TechRow>()
-    private val timeFmt = SimpleDateFormat("HH:mm", Locale.getDefault())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -46,14 +46,22 @@ class MainActivity : AppCompatActivity() {
             val card = layoutInflater.inflate(R.layout.item_tech_input, techContainer, false)
             card.findViewById<TextView>(R.id.techName).text = tech
             val input = card.findViewById<EditText>(R.id.amountInput)
-            card.findViewById<View>(R.id.addButton).setOnClickListener { addAmount(tech, input) }
-            input.setOnEditorActionListener { _, _, _ -> addAmount(tech, input); true }
-            rows[tech] = TechRow(
+            val row = TechRow(
                 total = card.findViewById(R.id.techTotal),
                 input = input,
-                entriesBox = card.findViewById(R.id.techEntries),
-                empty = card.findViewById(R.id.techEmpty)
+                chevron = card.findViewById(R.id.techChevron),
+                toggleLabel = card.findViewById(R.id.techToggleLabel),
+                chips = card.findViewById(R.id.techChips)
             )
+            rows[tech] = row
+
+            card.findViewById<View>(R.id.addButton).setOnClickListener { addAmount(tech, input) }
+            input.setOnEditorActionListener { _, _, _ -> addAmount(tech, input); true }
+            card.findViewById<View>(R.id.techToggle).setOnClickListener {
+                if (row.chips.childCount == 0) return@setOnClickListener
+                row.expanded = !row.expanded
+                applyExpand(row)
+            }
             techContainer.addView(card)
         }
 
@@ -79,6 +87,7 @@ class MainActivity : AppCompatActivity() {
         db.addEntry(tech, cents, selectedDay)
         input.setText("")
         input.clearFocus()
+        rows[tech]?.expanded = true // reveal the just-added customer
         refresh()
     }
 
@@ -112,19 +121,35 @@ class MainActivity : AppCompatActivity() {
             grand += techTotal
             row.total.text = Money.format(techTotal)
 
-            row.entriesBox.removeAllViews()
-            row.empty.visibility = if (entries.isEmpty()) View.VISIBLE else View.GONE
-            entries.forEachIndexed { index, entry ->
-                val label = "$customerLabel ${index + 1}"
-                val view = layoutInflater.inflate(R.layout.item_entry, row.entriesBox, false)
-                view.findViewById<TextView>(R.id.entryText).text =
-                    "$label  ·  ${Money.format(entry.cents)}  ·  ${timeFmt.format(Date(entry.createdAt))}"
-                view.findViewById<View>(R.id.deleteButton)
-                    .setOnClickListener { confirmDelete(entry, label) }
-                row.entriesBox.addView(view)
+            row.chips.removeAllViews()
+            if (entries.isEmpty()) {
+                row.toggleLabel.text = getString(R.string.no_customers)
+                row.chevron.visibility = View.GONE
+                row.expanded = false
+            } else {
+                row.chevron.visibility = View.VISIBLE
+                row.toggleLabel.text = getString(R.string.customers_count, entries.size)
+                entries.forEachIndexed { index, entry ->
+                    val label = "$customerLabel ${index + 1}"
+                    val chip = Chip(this).apply {
+                        text = Money.format(entry.cents)
+                        isCloseIconVisible = true
+                        isCheckable = false
+                        setOnClickListener { confirmDelete(entry, label) }
+                        setOnCloseIconClickListener { confirmDelete(entry, label) }
+                    }
+                    row.chips.addView(chip)
+                }
             }
+            applyExpand(row)
         }
         grandTotalText.text = Money.format(grand)
+    }
+
+    private fun applyExpand(row: TechRow) {
+        val show = row.expanded && row.chips.childCount > 0
+        row.chips.visibility = if (show) View.VISIBLE else View.GONE
+        row.chevron.text = if (show) "▾" else "▸"
     }
 
     private fun confirmDelete(entry: Entry, label: String) {

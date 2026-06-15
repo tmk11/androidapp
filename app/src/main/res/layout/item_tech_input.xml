@@ -70,20 +70,41 @@
                 android:text="@string/add" />
         </LinearLayout>
 
-        <TextView
-            android:id="@+id/techEmpty"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="@string/no_customers"
-            android:textColor="@color/gray_600"
-            android:textSize="13sp" />
-
         <LinearLayout
-            android:id="@+id/techEntries"
+            android:id="@+id/techToggle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:orientation="vertical" />
+            android:layout_marginTop="6dp"
+            android:background="?attr/selectableItemBackground"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingTop="6dp"
+            android:paddingBottom="6dp">
+
+            <TextView
+                android:id="@+id/techChevron"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="6dp"
+                android:text="▸"
+                android:textColor="@color/gray_600"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/techToggleLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/no_customers"
+                android:textColor="@color/gray_600"
+                android:textSize="13sp" />
+        </LinearLayout>
+
+        <com.google.android.material.chip.ChipGroup
+            android:id="@+id/techChips"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:visibility="gone"
+            app:chipSpacingVertical="2dp" />
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>
