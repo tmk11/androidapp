@@ -4,84 +4,102 @@ import android.content.ContentValues
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
+import java.util.UUID
 
-/** A single revenue entry for one technician. */
+/** A revenue entry shown in the UI. */
 data class Entry(
-    val id: Long,
+    val clientUuid: String,
     val tech: String,
     val cents: Long,
     val day: String,
     val createdAt: Long
 )
 
-/** SQLite storage for revenue entries. */
-class NailDb(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAME, null, 1) {
+/** A locally-changed entry waiting to be pushed to the server. */
+data class PendingEntry(
+    val uuid: String,
+    val tech: String,
+    val cents: Long,
+    val day: String,
+    val createdAt: Long,
+    val deleted: Boolean
+)
+
+/**
+ * Local SQLite cache (offline-first). Every row carries a stable [client_uuid]
+ * used for syncing, a [synced] flag (0 = needs pushing) and a [deleted] flag
+ * (soft delete, pushed then hard-removed once the server confirms).
+ */
+class NailDb(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAME, null, DB_VERSION) {
 
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL(
             "CREATE TABLE entries(" +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                "client_uuid TEXT NOT NULL, " +
                 "tech TEXT NOT NULL, " +
                 "amount_cents INTEGER NOT NULL, " +
                 "day TEXT NOT NULL, " +
-                "created_at INTEGER NOT NULL)"
+                "created_at INTEGER NOT NULL, " +
+                "synced INTEGER NOT NULL DEFAULT 0, " +
+                "deleted INTEGER NOT NULL DEFAULT 0)"
         )
+        db.execSQL("CREATE UNIQUE INDEX idx_entries_uuid ON entries(client_uuid)")
         db.execSQL("CREATE INDEX idx_entries_day ON entries(day)")
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        db.execSQL("DROP TABLE IF EXISTS entries")
-        onCreate(db)
+        if (oldVersion < 2) {
+            db.execSQL("ALTER TABLE entries ADD COLUMN client_uuid TEXT")
+            db.execSQL("ALTER TABLE entries ADD COLUMN synced INTEGER NOT NULL DEFAULT 0")
+            db.execSQL("ALTER TABLE entries ADD COLUMN deleted INTEGER NOT NULL DEFAULT 0")
+            db.execSQL("UPDATE entries SET client_uuid = lower(hex(randomblob(16))) WHERE client_uuid IS NULL")
+            db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS idx_entries_uuid ON entries(client_uuid)")
+        }
     }
 
-    fun addEntry(tech: String, cents: Long, day: String) {
+    // --- Local edits ---
+
+    fun addLocal(tech: String, cents: Long, day: String) {
         val values = ContentValues().apply {
+            put("client_uuid", UUID.randomUUID().toString())
             put("tech", tech)
             put("amount_cents", cents)
             put("day", day)
             put("created_at", System.currentTimeMillis())
+            put("synced", 0)
+            put("deleted", 0)
         }
         writableDatabase.insert("entries", null, values)
     }
 
-    fun deleteEntry(id: Long) {
-        writableDatabase.delete("entries", "id=?", arrayOf(id.toString()))
+    fun softDelete(uuid: String) {
+        writableDatabase.execSQL(
+            "UPDATE entries SET deleted=1, synced=0 WHERE client_uuid=?",
+            arrayOf(uuid)
+        )
     }
 
-    fun entriesForDay(day: String): List<Entry> {
-        val list = ArrayList<Entry>()
-        readableDatabase.rawQuery(
-            "SELECT id, tech, amount_cents, day, created_at FROM entries " +
-                "WHERE day=? ORDER BY created_at DESC",
-            arrayOf(day)
-        ).use { c ->
-            while (c.moveToNext()) {
-                list.add(Entry(c.getLong(0), c.getString(1), c.getLong(2), c.getString(3), c.getLong(4)))
-            }
-        }
-        return list
-    }
+    // --- Reads for the UI (visible rows only) ---
 
-    /** A technician's entries for one day, oldest first (customer #1, #2, ...). */
     fun entriesForTechDay(tech: String, day: String): List<Entry> {
         val list = ArrayList<Entry>()
         readableDatabase.rawQuery(
-            "SELECT id, tech, amount_cents, day, created_at FROM entries " +
-                "WHERE tech=? AND day=? ORDER BY created_at ASC",
+            "SELECT client_uuid, tech, amount_cents, day, created_at FROM entries " +
+                "WHERE tech=? AND day=? AND deleted=0 ORDER BY created_at ASC",
             arrayOf(tech, day)
         ).use { c ->
             while (c.moveToNext()) {
-                list.add(Entry(c.getLong(0), c.getString(1), c.getLong(2), c.getString(3), c.getLong(4)))
+                list.add(Entry(c.getString(0), c.getString(1), c.getLong(2), c.getString(3), c.getLong(4)))
             }
         }
         return list
     }
 
-    /** Totals (cents) grouped by technician for days matching the LIKE [pattern]. */
     fun totalsByTechLike(pattern: String): Map<String, Long> {
         val map = HashMap<String, Long>()
         readableDatabase.rawQuery(
-            "SELECT tech, SUM(amount_cents) FROM entries WHERE day LIKE ? GROUP BY tech",
+            "SELECT tech, SUM(amount_cents) FROM entries WHERE day LIKE ? AND deleted=0 GROUP BY tech",
             arrayOf(pattern)
         ).use { c ->
             while (c.moveToNext()) map[c.getString(0)] = c.getLong(1)
@@ -89,11 +107,10 @@ class NailDb(context: Context) : SQLiteOpenHelper(context.applicationContext, DB
         return map
     }
 
-    /** Totals (cents) grouped by technician across all days. */
     fun totalsByTechAll(): Map<String, Long> {
         val map = HashMap<String, Long>()
         readableDatabase.rawQuery(
-            "SELECT tech, SUM(amount_cents) FROM entries GROUP BY tech",
+            "SELECT tech, SUM(amount_cents) FROM entries WHERE deleted=0 GROUP BY tech",
             null
         ).use { c ->
             while (c.moveToNext()) map[c.getString(0)] = c.getLong(1)
@@ -101,8 +118,61 @@ class NailDb(context: Context) : SQLiteOpenHelper(context.applicationContext, DB
         return map
     }
 
+    // --- Sync support ---
+
+    fun pending(): List<PendingEntry> {
+        val list = ArrayList<PendingEntry>()
+        readableDatabase.rawQuery(
+            "SELECT client_uuid, tech, amount_cents, day, created_at, deleted FROM entries " +
+                "WHERE synced=0 ORDER BY created_at ASC",
+            null
+        ).use { c ->
+            while (c.moveToNext()) {
+                list.add(
+                    PendingEntry(
+                        c.getString(0), c.getString(1), c.getLong(2),
+                        c.getString(3), c.getLong(4), c.getInt(5) == 1
+                    )
+                )
+            }
+        }
+        return list
+    }
+
+    fun markSynced(uuid: String) {
+        writableDatabase.execSQL("UPDATE entries SET synced=1 WHERE client_uuid=?", arrayOf(uuid))
+    }
+
+    fun hardDelete(uuid: String) {
+        writableDatabase.delete("entries", "client_uuid=?", arrayOf(uuid))
+    }
+
+    fun upsertRemote(r: RemoteEntry) {
+        writableDatabase.execSQL(
+            "INSERT INTO entries(client_uuid, tech, amount_cents, day, created_at, synced, deleted) " +
+                "VALUES(?,?,?,?,?,1,0) " +
+                "ON CONFLICT(client_uuid) DO UPDATE SET " +
+                "tech=excluded.tech, amount_cents=excluded.amount_cents, day=excluded.day, " +
+                "created_at=excluded.created_at, synced=1, deleted=0",
+            arrayOf(r.uuid, r.tech, r.cents, r.day, r.createdAt)
+        )
+    }
+
+    /** UUIDs of locally-visible, already-synced rows (used to detect remote deletes). */
+    fun syncedUuids(): Set<String> {
+        val set = HashSet<String>()
+        readableDatabase.rawQuery(
+            "SELECT client_uuid FROM entries WHERE synced=1 AND deleted=0",
+            null
+        ).use { c ->
+            while (c.moveToNext()) set.add(c.getString(0))
+        }
+        return set
+    }
+
     companion object {
         private const val DB_NAME = "nail_revenue.db"
+        private const val DB_VERSION = 2
         val TECHS = listOf("Ha", "David", "Tu", "Anh")
     }
 }

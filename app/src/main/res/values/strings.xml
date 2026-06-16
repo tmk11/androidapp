@@ -25,4 +25,22 @@
     <string name="close">Đóng</string>
     <string name="invalid_amount">Vui lòng nhập số tiền hợp lệ</string>
     <string name="total">Tổng</string>
+
+    <!-- Sync -->
+    <string name="sync_button">↻ Đồng bộ</string>
+    <string name="sync_syncing">Đang đồng bộ…</string>
+    <string name="sync_ok">Đã đồng bộ • %1$s</string>
+    <string name="sync_error">Chưa đồng bộ (lỗi mạng) — sẽ tự thử lại</string>
+    <string name="sync_offline">Ngoại tuyến — dữ liệu lưu tạm trên máy</string>
+
+    <!-- Gate / password -->
+    <string name="gate_create">Đặt mật khẩu cho tiệm (lần đầu)</string>
+    <string name="gate_enter">Nhập mật khẩu tiệm</string>
+    <string name="gate_password_hint">Mật khẩu</string>
+    <string name="gate_continue">Tiếp tục</string>
+    <string name="gate_wrong">Sai mật khẩu, thử lại</string>
+    <string name="gate_no_network">Lần đầu cần internet để thiết lập. Kiểm tra mạng rồi bấm Tiếp tục.</string>
+    <string name="gate_checking">Đang kiểm tra…</string>
+    <string name="gate_empty">Vui lòng nhập mật khẩu</string>
+    <string name="gate_subtitle">Dữ liệu được đồng bộ giữa các máy qua mật khẩu chung này.</string>
 </resources>

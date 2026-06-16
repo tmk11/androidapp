@@ -3,6 +3,8 @@ package com.example.simpleapp
 import android.app.DatePickerDialog
 import android.content.Intent
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.View
 import android.widget.EditText
 import android.widget.LinearLayout
@@ -12,15 +14,23 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.chip.Chip
 import com.google.android.material.chip.ChipGroup
+import java.text.SimpleDateFormat
 import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : AppCompatActivity(), SyncManager.Listener {
 
     private lateinit var db: NailDb
+    private lateinit var prefs: Prefs
+    private lateinit var sync: SyncManager
     private var selectedDay = Dates.todayKey()
 
     private lateinit var dateText: TextView
     private lateinit var grandTotalText: TextView
+    private lateinit var syncStatus: TextView
+
+    private val timeFmt = SimpleDateFormat("HH:mm", Locale.getDefault())
 
     private class TechRow(
         val total: TextView,
@@ -33,13 +43,29 @@ class MainActivity : AppCompatActivity() {
 
     private val rows = LinkedHashMap<String, TechRow>()
 
+    private val periodicHandler = Handler(Looper.getMainLooper())
+    private val periodicSync = object : Runnable {
+        override fun run() {
+            sync.syncAsync(this@MainActivity)
+            periodicHandler.postDelayed(this, 30_000)
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        prefs = Prefs(this)
+        if (prefs.getPassword() == null) {
+            startActivity(Intent(this, GateActivity::class.java))
+            finish()
+            return
+        }
         setContentView(R.layout.activity_main)
         db = NailDb(this)
+        sync = SyncManager(db, prefs)
 
         dateText = findViewById(R.id.dateText)
         grandTotalText = findViewById(R.id.grandTotalText)
+        syncStatus = findViewById(R.id.syncStatus)
         val techContainer = findViewById<LinearLayout>(R.id.techContainer)
 
         for (tech in NailDb.TECHS) {
@@ -54,7 +80,6 @@ class MainActivity : AppCompatActivity() {
                 chips = card.findViewById(R.id.techChips)
             )
             rows[tech] = row
-
             card.findViewById<View>(R.id.addButton).setOnClickListener { addAmount(tech, input) }
             input.setOnEditorActionListener { _, _, _ -> addAmount(tech, input); true }
             card.findViewById<View>(R.id.techToggle).setOnClickListener {
@@ -69,12 +94,30 @@ class MainActivity : AppCompatActivity() {
         findViewById<View>(R.id.reportButton).setOnClickListener {
             startActivity(Intent(this, ReportActivity::class.java))
         }
+        findViewById<View>(R.id.syncButton).setOnClickListener { sync.syncAsync(this) }
 
         refresh()
     }
 
     override fun onResume() {
         super.onResume()
+        refresh()
+        periodicHandler.post(periodicSync)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        periodicHandler.removeCallbacks(periodicSync)
+    }
+
+    override fun onSyncStart() {
+        syncStatus.text = getString(R.string.sync_syncing)
+    }
+
+    override fun onSyncDone(success: Boolean) {
+        syncStatus.text =
+            if (success) getString(R.string.sync_ok, timeFmt.format(Date()))
+            else getString(R.string.sync_error)
         refresh()
     }
 
@@ -84,11 +127,12 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, getString(R.string.invalid_amount), Toast.LENGTH_SHORT).show()
             return
         }
-        db.addEntry(tech, cents, selectedDay)
+        db.addLocal(tech, cents, selectedDay)
         input.setText("")
         input.clearFocus()
-        rows[tech]?.expanded = true // reveal the just-added customer
+        rows[tech]?.expanded = true
         refresh()
+        sync.syncAsync(this)
     }
 
     private fun pickDate() {
@@ -160,8 +204,9 @@ class MainActivity : AppCompatActivity() {
                     getString(R.string.cannot_undo)
             )
             .setPositiveButton(getString(R.string.delete)) { _, _ ->
-                db.deleteEntry(entry.id)
+                db.softDelete(entry.clientUuid)
                 refresh()
+                sync.syncAsync(this)
             }
             .setNegativeButton(getString(R.string.cancel), null)
             .show()

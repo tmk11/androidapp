@@ -65,6 +65,16 @@ class ReportActivity : AppCompatActivity() {
         renderDay()
         renderMonth()
         renderAll()
+
+        // Pull the latest data from the server, then re-render.
+        SyncManager(db, Prefs(this)).syncAsync(object : SyncManager.Listener {
+            override fun onSyncStart() {}
+            override fun onSyncDone(success: Boolean) {
+                renderDay()
+                renderMonth()
+                renderAll()
+            }
+        })
     }
 
     private fun renderDay() {
