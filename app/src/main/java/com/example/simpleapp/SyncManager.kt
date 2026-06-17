@@ -39,7 +39,7 @@ class SyncManager(private val db: NailDb, private val prefs: Prefs) {
             if (p.deleted) {
                 if (Api.deleteEntry(password, p.uuid)) db.hardDelete(p.uuid) else return false
             } else {
-                val remote = RemoteEntry(p.uuid, p.tech, p.cents, p.day, p.createdAt)
+                val remote = RemoteEntry(p.uuid, p.tech, p.cents, p.day, p.createdAt, p.enteredBy)
                 if (Api.addEntry(password, remote)) db.markSynced(p.uuid) else return false
             }
         }

@@ -30,7 +30,8 @@ class MainActivity : AppCompatActivity(), SyncManager.Listener {
     private lateinit var grandTotalText: TextView
     private lateinit var syncStatus: TextView
 
-    private val timeFmt = SimpleDateFormat("HH:mm", Locale.getDefault())
+    private val statusTimeFmt = SimpleDateFormat("HH:mm", Locale.getDefault())
+    private val detailTimeFmt = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
 
     private class TechRow(
         val total: TextView,
@@ -96,7 +97,9 @@ class MainActivity : AppCompatActivity(), SyncManager.Listener {
         }
         findViewById<View>(R.id.syncButton).setOnClickListener { sync.syncAsync(this) }
 
+        syncStatus.text = deviceLabel()
         refresh()
+        if (prefs.getDeviceName().isNullOrBlank()) askDeviceName()
     }
 
     override fun onResume() {
@@ -111,14 +114,58 @@ class MainActivity : AppCompatActivity(), SyncManager.Listener {
     }
 
     override fun onSyncStart() {
-        syncStatus.text = getString(R.string.sync_syncing)
+        syncStatus.text = deviceLabel() + getString(R.string.sync_syncing)
     }
 
     override fun onSyncDone(success: Boolean) {
-        syncStatus.text =
-            if (success) getString(R.string.sync_ok, timeFmt.format(Date()))
-            else getString(R.string.sync_error)
+        syncStatus.text = deviceLabel() + if (success) {
+            getString(R.string.sync_ok, statusTimeFmt.format(Date()))
+        } else {
+            getString(R.string.sync_error)
+        }
         refresh()
+    }
+
+    private fun deviceLabel(): String {
+        val name = prefs.getDeviceName()
+        return if (name.isNullOrBlank()) "" else "👤 $name · "
+    }
+
+    private fun askDeviceName() {
+        val options = (NailDb.TECHS + getString(R.string.device_other)).toTypedArray()
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.device_name_title))
+            .setCancelable(false)
+            .setItems(options) { _, which ->
+                if (which < NailDb.TECHS.size) {
+                    prefs.setDeviceName(NailDb.TECHS[which])
+                    syncStatus.text = deviceLabel()
+                } else {
+                    askCustomDeviceName()
+                }
+            }
+            .show()
+    }
+
+    private fun askCustomDeviceName() {
+        val pad = (16 * resources.displayMetrics.density).toInt()
+        val input = EditText(this).apply {
+            hint = getString(R.string.device_name_hint)
+            setSingleLine()
+            setPadding(pad, pad, pad, pad)
+        }
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.device_name_title))
+            .setCancelable(false)
+            .setView(input)
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                val name = input.text.toString().trim()
+                if (name.isEmpty()) askDeviceName() else {
+                    prefs.setDeviceName(name)
+                    syncStatus.text = deviceLabel()
+                }
+            }
+            .show()
     }
 
     private fun addAmount(tech: String, input: EditText) {
@@ -127,7 +174,7 @@ class MainActivity : AppCompatActivity(), SyncManager.Listener {
             Toast.makeText(this, getString(R.string.invalid_amount), Toast.LENGTH_SHORT).show()
             return
         }
-        db.addLocal(tech, cents, selectedDay)
+        db.addLocal(tech, cents, selectedDay, prefs.getDeviceName())
         input.setText("")
         input.clearFocus()
         rows[tech]?.expanded = true
@@ -177,10 +224,8 @@ class MainActivity : AppCompatActivity(), SyncManager.Listener {
                     val label = "$customerLabel ${index + 1}"
                     val chip = Chip(this).apply {
                         text = Money.format(entry.cents)
-                        isCloseIconVisible = true
                         isCheckable = false
-                        setOnClickListener { confirmDelete(entry, label) }
-                        setOnCloseIconClickListener { confirmDelete(entry, label) }
+                        setOnClickListener { showDetails(entry, label) }
                     }
                     row.chips.addView(chip)
                 }
@@ -194,6 +239,22 @@ class MainActivity : AppCompatActivity(), SyncManager.Listener {
         val show = row.expanded && row.chips.childCount > 0
         row.chips.visibility = if (show) View.VISIBLE else View.GONE
         row.chevron.text = if (show) "▾" else "▸"
+    }
+
+    /** Tap a customer chip to reveal who recorded it (hidden by default). */
+    private fun showDetails(entry: Entry, label: String) {
+        val who = entry.enteredBy?.takeIf { it.isNotBlank() } ?: getString(R.string.unknown_dash)
+        val message =
+            "${getString(R.string.detail_tech)}: ${entry.tech}\n" +
+                "${getString(R.string.detail_amount)}: ${Money.format(entry.cents)}\n" +
+                "${getString(R.string.detail_by)}: $who\n" +
+                "${getString(R.string.detail_time)}: ${detailTimeFmt.format(Date(entry.createdAt))}"
+        AlertDialog.Builder(this)
+            .setTitle("${getString(R.string.detail_title)} · $label")
+            .setMessage(message)
+            .setPositiveButton(getString(R.string.close), null)
+            .setNegativeButton(getString(R.string.delete)) { _, _ -> confirmDelete(entry, label) }
+            .show()
     }
 
     private fun confirmDelete(entry: Entry, label: String) {

@@ -14,7 +14,8 @@ data class RemoteEntry(
     val tech: String,
     val cents: Long,
     val day: String,
-    val createdAt: Long
+    val createdAt: Long,
+    val enteredBy: String?
 )
 
 /**
@@ -81,6 +82,7 @@ object Api {
             .put("p_cents", e.cents)
             .put("p_day", e.day)
             .put("p_created_at_ms", e.createdAt)
+            .put("p_entered_by", e.enteredBy ?: JSONObject.NULL)
         ok(rpc("app_add_entry", body).code)
     } catch (ex: Exception) {
         false
@@ -109,7 +111,8 @@ object Api {
                         o.getString("tech"),
                         o.getLong("amount_cents"),
                         o.getString("day"),
-                        o.getLong("created_at_ms")
+                        o.getLong("created_at_ms"),
+                        if (o.isNull("entered_by")) null else o.getString("entered_by")
                     )
                 )
             }

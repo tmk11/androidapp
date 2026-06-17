@@ -6,13 +6,14 @@ import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import java.util.UUID
 
-/** A revenue entry shown in the UI. */
+/** A revenue entry shown in the UI. [enteredBy] = who/which device recorded it. */
 data class Entry(
     val clientUuid: String,
     val tech: String,
     val cents: Long,
     val day: String,
-    val createdAt: Long
+    val createdAt: Long,
+    val enteredBy: String?
 )
 
 /** A locally-changed entry waiting to be pushed to the server. */
@@ -22,13 +23,14 @@ data class PendingEntry(
     val cents: Long,
     val day: String,
     val createdAt: Long,
+    val enteredBy: String?,
     val deleted: Boolean
 )
 
 /**
  * Local SQLite cache (offline-first). Every row carries a stable [client_uuid]
- * used for syncing, a [synced] flag (0 = needs pushing) and a [deleted] flag
- * (soft delete, pushed then hard-removed once the server confirms).
+ * used for syncing, a [synced] flag (0 = needs pushing), a [deleted] flag (soft
+ * delete) and [entered_by] (who recorded it).
  */
 class NailDb(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAME, null, DB_VERSION) {
 
@@ -41,6 +43,7 @@ class NailDb(context: Context) : SQLiteOpenHelper(context.applicationContext, DB
                 "amount_cents INTEGER NOT NULL, " +
                 "day TEXT NOT NULL, " +
                 "created_at INTEGER NOT NULL, " +
+                "entered_by TEXT, " +
                 "synced INTEGER NOT NULL DEFAULT 0, " +
                 "deleted INTEGER NOT NULL DEFAULT 0)"
         )
@@ -56,17 +59,21 @@ class NailDb(context: Context) : SQLiteOpenHelper(context.applicationContext, DB
             db.execSQL("UPDATE entries SET client_uuid = lower(hex(randomblob(16))) WHERE client_uuid IS NULL")
             db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS idx_entries_uuid ON entries(client_uuid)")
         }
+        if (oldVersion < 3) {
+            db.execSQL("ALTER TABLE entries ADD COLUMN entered_by TEXT")
+        }
     }
 
     // --- Local edits ---
 
-    fun addLocal(tech: String, cents: Long, day: String) {
+    fun addLocal(tech: String, cents: Long, day: String, enteredBy: String?) {
         val values = ContentValues().apply {
             put("client_uuid", UUID.randomUUID().toString())
             put("tech", tech)
             put("amount_cents", cents)
             put("day", day)
             put("created_at", System.currentTimeMillis())
+            put("entered_by", enteredBy)
             put("synced", 0)
             put("deleted", 0)
         }
@@ -85,12 +92,14 @@ class NailDb(context: Context) : SQLiteOpenHelper(context.applicationContext, DB
     fun entriesForTechDay(tech: String, day: String): List<Entry> {
         val list = ArrayList<Entry>()
         readableDatabase.rawQuery(
-            "SELECT client_uuid, tech, amount_cents, day, created_at FROM entries " +
+            "SELECT client_uuid, tech, amount_cents, day, created_at, entered_by FROM entries " +
                 "WHERE tech=? AND day=? AND deleted=0 ORDER BY created_at ASC",
             arrayOf(tech, day)
         ).use { c ->
             while (c.moveToNext()) {
-                list.add(Entry(c.getString(0), c.getString(1), c.getLong(2), c.getString(3), c.getLong(4)))
+                list.add(
+                    Entry(c.getString(0), c.getString(1), c.getLong(2), c.getString(3), c.getLong(4), c.getString(5))
+                )
             }
         }
         return list
@@ -123,7 +132,7 @@ class NailDb(context: Context) : SQLiteOpenHelper(context.applicationContext, DB
     fun pending(): List<PendingEntry> {
         val list = ArrayList<PendingEntry>()
         readableDatabase.rawQuery(
-            "SELECT client_uuid, tech, amount_cents, day, created_at, deleted FROM entries " +
+            "SELECT client_uuid, tech, amount_cents, day, created_at, entered_by, deleted FROM entries " +
                 "WHERE synced=0 ORDER BY created_at ASC",
             null
         ).use { c ->
@@ -131,7 +140,7 @@ class NailDb(context: Context) : SQLiteOpenHelper(context.applicationContext, DB
                 list.add(
                     PendingEntry(
                         c.getString(0), c.getString(1), c.getLong(2),
-                        c.getString(3), c.getLong(4), c.getInt(5) == 1
+                        c.getString(3), c.getLong(4), c.getString(5), c.getInt(6) == 1
                     )
                 )
             }
@@ -149,12 +158,12 @@ class NailDb(context: Context) : SQLiteOpenHelper(context.applicationContext, DB
 
     fun upsertRemote(r: RemoteEntry) {
         writableDatabase.execSQL(
-            "INSERT INTO entries(client_uuid, tech, amount_cents, day, created_at, synced, deleted) " +
-                "VALUES(?,?,?,?,?,1,0) " +
+            "INSERT INTO entries(client_uuid, tech, amount_cents, day, created_at, entered_by, synced, deleted) " +
+                "VALUES(?,?,?,?,?,?,1,0) " +
                 "ON CONFLICT(client_uuid) DO UPDATE SET " +
                 "tech=excluded.tech, amount_cents=excluded.amount_cents, day=excluded.day, " +
-                "created_at=excluded.created_at, synced=1, deleted=0",
-            arrayOf(r.uuid, r.tech, r.cents, r.day, r.createdAt)
+                "created_at=excluded.created_at, entered_by=excluded.entered_by, synced=1, deleted=0",
+            arrayOf(r.uuid, r.tech, r.cents, r.day, r.createdAt, r.enteredBy)
         )
     }
 
@@ -172,7 +181,7 @@ class NailDb(context: Context) : SQLiteOpenHelper(context.applicationContext, DB
 
     companion object {
         private const val DB_NAME = "nail_revenue.db"
-        private const val DB_VERSION = 2
+        private const val DB_VERSION = 3
         val TECHS = listOf("Ha", "David", "Tu", "Anh")
     }
 }

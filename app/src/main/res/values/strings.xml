@@ -43,4 +43,15 @@
     <string name="gate_checking">Đang kiểm tra…</string>
     <string name="gate_empty">Vui lòng nhập mật khẩu</string>
     <string name="gate_subtitle">Dữ liệu được đồng bộ giữa các máy qua mật khẩu chung này.</string>
+
+    <!-- Device identity + entry details -->
+    <string name="device_name_title">Máy này là của ai?</string>
+    <string name="device_name_hint">Nhập tên người dùng máy</string>
+    <string name="device_other">Tên khác…</string>
+    <string name="detail_title">Chi tiết khoản</string>
+    <string name="detail_tech">Thợ</string>
+    <string name="detail_amount">Số tiền</string>
+    <string name="detail_by">Người nhập</string>
+    <string name="detail_time">Lúc</string>
+    <string name="unknown_dash">—</string>
 </resources>
